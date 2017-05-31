@@ -26,7 +26,10 @@ Public Class Form1
     Shared Scopes As String() = {DriveService.Scope.DriveFile, DriveService.Scope.Drive}
     Shared ApplicationName As String = "Google Drive Uploader Tool"
     Public service As DriveService
-    Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load        'Initialize Upload Queue Collection
+    Dim credential As UserCredential
+    Dim credPath As String = System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal)
+
+    Public Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load        'Initialize Upload Queue Collection
         Button10.Enabled = False
         If My.Settings.UploadQueue Is Nothing Then
             My.Settings.UploadQueue = New Specialized.StringCollection
@@ -77,16 +80,43 @@ Public Class Form1
 
         'Checks if the Preserve Modified Date checkbox was checked in the last run.
         If My.Settings.PreserveModifiedDate = True Then CheckBox1.Checked = True Else CheckBox1.Checked = False
+        credPath = Path.Combine(credPath, ".test-credentials")
+        Directory.GetDirectories(credPath)
+        'Plan 
+        'make Directory for each account 
+        'and use form 2 to choose or craete account
+
+        Debug.WriteLine(credPath)
+        Dim form2 As New Form2
+        Dim accounts As String() = Directory.GetDirectories(credPath)
+        form2.ListBox1.Items.Add("To add a new accoutn please type your username in the text box below")
+        For Each account In accounts
+            Dim dir As New DirectoryInfo(account)
+            form2.ListBox1.Items.Add(dir.Name)
+        Next
+        form2.ShowDialog()
+
+        If form2.ListBox1.SelectedIndex = 0 Then
+            Directory.CreateDirectory(form2.TextBox1.Text)
+            credPath = Path.Combine(credPath, form2.TextBox1.Text)
+        Else
+            Dim ac As String = form2.ListBox1.SelectedItem
+            credPath = Path.Combine(credPath, ac)
+        End If
+
+        step1_5()
+
+    End Sub
+
+    Public Sub step1_5()
         'Google Drive initialization
         Dim credential As UserCredential
         Try
             Using stream = New FileStream("client_secret.json", FileMode.Open, FileAccess.Read)
                 Dim credPath As String = System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal)
-                Debug.WriteLine(System.Environment.SpecialFolder.Personal)
+                'Debug.WriteLine(System.Environment.SpecialFolder.Personal)
                 credPath = Path.Combine(credPath, ".credentials/GoogleDriveUploaderTool.json")
-                Debug.WriteLine(credPath)
                 credential = GoogleWebAuthorizationBroker.AuthorizeAsync(GoogleClientSecrets.Load(stream).Secrets, Scopes, "user", CancellationToken.None, New FileDataStore(credPath, True)).Result
-                Debug.WriteLine(credential)
             End Using
         Catch
             If My.Settings.Language = "English" Then
@@ -97,16 +127,31 @@ Public Class Form1
                 'Chinese Translation goes here
             End If
         End Try
+
+
+
+
         ' Create Drive API service.
         Dim Initializer As New BaseClientService.Initializer()
         Initializer.HttpClientInitializer = credential
         Initializer.ApplicationName = ApplicationName
         service = New DriveService(Initializer)
         service.HttpClient.Timeout = TimeSpan.FromSeconds(120)
+
+
+
         ' List files.
         RefreshFileList("root")
         GetFolderIDName(False)
+
+
+
     End Sub
+
+
+
+
+
 
     Private starttime As DateTime
     Private timespent As TimeSpan
@@ -1036,8 +1081,8 @@ Public Class Form1
     End Sub
 
     Private Sub btnLogout_Click(sender As Object, e As EventArgs) Handles btnLogout.Click
-        Dim credPath As String = System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal)
-        credPath = Path.Combine(credPath, ".credentials\GoogleDriveUploaderTool.json")
+        'Dim credPath As String = System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal)
+        'credPath = Path.Combine(credPath, ".test-credentials\GoogleDriveUploaderTool.json")
         Dim credfiles As String() = Directory.GetFiles(credPath, "*.TokenResponse-user")
         For Each credfile In credfiles
             Debug.WriteLine(credfile)
